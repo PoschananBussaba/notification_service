@@ -21,7 +21,13 @@ func ConnectDatabase() {
 	DB = database
 
 	// เรียก AutoMigrate เพื่อสร้างตาราง
-	err = DB.AutoMigrate(&models.User{})
+	err = DB.AutoMigrate(
+		&models.User{},
+		&models.Notification{},
+		&models.NotificationRecipient{},
+		&models.TargetGroup{},
+		&models.TargetGroupMember{},
+	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

@@ -19,17 +19,27 @@ func generateUUID() string {
 
 func CreateNotification(c *fiber.Ctx) error {
 	var notification models.Notification
-	notification.ID = generateUUID()
 
-	// แปลง Body เป็นโครงสร้าง Notification
+	// แปลงข้อมูลจาก JSON
 	if err := c.BodyParser(&notification); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 	}
 
-	// เพิ่ม UUID ให้ Notification
+	// ตรวจสอบและแปลงค่าของ `scheduled_at`
+	if notification.ScheduledAt != nil {
+		layout := "2006-01-02 15:04" // รูปแบบที่มาจากฟอร์ม HTML
+		parsedTime, err := time.Parse(layout, notification.ScheduledAt.Format(layout))
+		if err != nil {
+			log.Println("Invalid datetime format:", err)
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid datetime format"})
+		}
+		notification.ScheduledAt = &parsedTime
+	}
+
+	// สร้าง UUID
 	notification.ID = generateUUID()
 
-	// บันทึกข้อมูลลงฐานข้อมูล
+	// บันทึกลงฐานข้อมูล
 	if err := database.DB.Create(&notification).Error; err != nil {
 		log.Println("Failed to create notification:", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create notification"})

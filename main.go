@@ -2,30 +2,34 @@ package main
 
 import (
 	"log"
-
 	"notification_service/database"
 	"notification_service/routes"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// โหลด Environment Variables
+	// โหลด environment variables
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+		log.Fatal("Error loading .env file")
 	}
 
-	// เชื่อมต่อฐานข้อมูล
-	database.ConnectDatabase()
-
-	// สร้าง Fiber App
+	// ตั้งค่า Fiber App
 	app := fiber.New()
 
-	// ตั้งค่าเส้นทาง API
-	routes.Setup(app)
+	// เชื่อมต่อกับ Database
+	database.ConnectDB()
 
-	// รันเซิร์ฟเวอร์
-	log.Fatal(app.Listen(":8080"))
+	// ตั้งค่า Routes
+	routes.SetupRoutes(app)
+
+	// เริ่ม Server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Fatal(app.Listen(":" + port))
 }

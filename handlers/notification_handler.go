@@ -1,62 +1,81 @@
 package handlers
 
 import (
-	"encoding/json"
+	"log"
+	"net/smtp"
 	"notification_service/database"
 	"notification_service/models"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
-type NotificationRequest struct {
-	SenderID     string   `json:"sender_id"`
-	Subject      string   `json:"subject"`
-	Message      string   `json:"message"`
-	Priority     string   `json:"priority"`
-	RecipientIDs []string `json:"recipient_ids"`
+// generateUUID - สร้าง UUID
+func generateUUID() string {
+	return uuid.New().String()
 }
 
 func CreateNotification(c *fiber.Ctx) error {
-	var req NotificationRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request payload"})
+	var notification models.Notification
+	notification.ID = generateUUID()
+
+	// แปลง Body เป็นโครงสร้าง Notification
+	if err := c.BodyParser(&notification); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 	}
 
-	// แปลง message ให้เป็น JSON String
-	messageJSON, err := json.Marshal(map[string]string{"text": req.Message})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to parse message"})
-	}
+	// เพิ่ม UUID ให้ Notification
+	notification.ID = generateUUID()
 
-	notification := models.Notification{
-		ID:        uuid.New().String(),
-		SenderID:  req.SenderID,
-		Subject:   req.Subject,
-		Message:   string(messageJSON), // ใช้ JSON ที่แปลงแล้ว
-		Priority:  req.Priority,
-		Status:    "pending",
-		CreatedAt: time.Now(),
-	}
-
-	// บันทึก Notification ในฐานข้อมูล
+	// บันทึกข้อมูลลงฐานข้อมูล
 	if err := database.DB.Create(&notification).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create notification"})
+		log.Println("Failed to create notification:", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create notification"})
 	}
 
-	// เพิ่มผู้รับ
-	for _, userID := range req.RecipientIDs {
-		recipient := models.NotificationRecipient{
-			ID:             uuid.New().String(),
-			NotificationID: notification.ID,
-			UserID:         userID,
-			Channel:        "email",
-			DeliveryStatus: "pending",
-			CreatedAt:      time.Now(),
+	return c.Status(201).JSON(notification)
+}
+
+func SendNotifications(c *fiber.Ctx) error {
+	var notifications []models.Notification
+
+	// ดึง Notifications ที่สถานะเป็น pending
+	if err := database.DB.Where("status = ?", "pending").Find(&notifications).Error; err != nil {
+		log.Println("Failed to fetch notifications:", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch notifications"})
+	}
+
+	// อ่านค่าจาก .env
+	from := os.Getenv("SMTP_EMAIL")
+	password := os.Getenv("SMTP_PASSWORD")
+	smtpHost := "smtp.gmail.com"
+	smtpPort := "587"
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	for _, notification := range notifications {
+		// เตรียมข้อความ
+		to := "recipient@example.com" // ระบุอีเมลผู้รับ (แก้ไขตามต้องการ)
+		subject := "Subject: " + notification.Subject + "\n"
+		message := notification.Message + "\n"
+		body := []byte(subject + "\n" + message)
+
+		// ส่งอีเมล
+		err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, body)
+		if err != nil {
+			log.Printf("Failed to send notification ID: %s, Error: %v", notification.ID, err)
+			database.DB.Model(&notification).Update("status", "failed")
+			continue
 		}
-		database.DB.Create(&recipient)
+
+		// อัปเดตสถานะเป็น sent
+		database.DB.Model(&notification).Updates(map[string]interface{}{
+			"status":       "sent",
+			"scheduled_at": time.Now(),
+		})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(notification)
+	return c.Status(200).JSON(fiber.Map{"message": "Notifications processed successfully"})
 }

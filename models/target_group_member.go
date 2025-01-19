@@ -1,18 +1,14 @@
 package models
 
-import (
-	"time"
-
-	"gorm.io/gorm"
-)
+import "time"
 
 type TargetGroupMember struct {
-	ID        string         `gorm:"type:char(36);primary_key" json:"id"`
-	GroupID   string         `gorm:"type:char(36);not null" json:"group_id"`
-	UserID    string         `gorm:"type:char(36);not null" json:"user_id"`
-	Role      string         `gorm:"type:enum('member', 'admin');default:'member'" json:"role"`
-	IsActive  bool           `gorm:"default:true" json:"is_active"`
-	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        string     `gorm:"type:char(36);primaryKey"`
+	GroupID   string     `gorm:"char(36);not null"`
+	UserID    string     `gorm:"char(36);not null"`
+	Role      string     `gorm:"type:enum('member','admin');default:'member'"`
+	IsActive  bool       `gorm:"default:true"`
+	CreatedAt time.Time  `gorm:"autoCreateTime"`
+	UpdatedAt time.Time  `gorm:"autoUpdateTime"`
+	DeletedAt *time.Time `gorm:"index"`
 }

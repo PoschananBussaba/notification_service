@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Notification</title>
+</head>
+<body>
+    <form id="notificationForm">
+        <label for="sender_id">Sender ID:</label>
+        <input type="text" id="sender_id" name="sender_id" required><br>
+
+        <label for="subject">Subject:</label>
+        <input type="text" id="subject" name="subject" required><br>
+
+        <label for="message">Message:</label>
+        <textarea id="message" name="message" required>Test notification message</textarea><br>
+
+        <label for="priority">Priority:</label>
+        <select id="priority" name="priority">
+            <option value="low">Low</option>
+            <option value="normal" selected>Normal</option>
+            <option value="high">High</option>
+        </select><br>
+
+        <label for="scheduled_at">Scheduled At:</label>
+        <input type="datetime-local" id="scheduled_at" name="scheduled_at" required><br>
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <script>
+        document.getElementById('notificationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            const response = await fetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+            alert(JSON.stringify(result));
+        });
+    </script>
+</body>
+</html>

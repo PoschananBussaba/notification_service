@@ -4,6 +4,7 @@ import (
 	"log"
 	"notification_service/database"
 	"notification_service/routes"
+	"notification_service/scheduler"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,13 +12,11 @@ import (
 )
 
 func main() {
-	// โหลด environment variables
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	// ตั้งค่า Fiber App
 	app := fiber.New()
 
 	// เชื่อมต่อกับ Database
@@ -26,7 +25,9 @@ func main() {
 	// ตั้งค่า Routes
 	routes.SetupRoutes(app)
 
-	// เริ่ม Server
+	// เริ่ม Scheduler
+	scheduler.StartScheduler()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

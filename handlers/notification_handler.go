@@ -112,8 +112,8 @@ func CreateNotification(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Target group not found"})
 	}
 
-	// แปลง ScheduledAt เป็นรูปแบบที่ถูกต้อง
-	scheduledAt, err := time.Parse("2006-01-02T15:04", input.ScheduledAt)
+	// แปลงเวลาจาก input เป็น `time.Time`
+	scheduledAt, err := time.Parse("2006-01-02 15:04:05.000", input.ScheduledAt)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid scheduled_at format"})
 	}
@@ -129,13 +129,12 @@ func CreateNotification(c *fiber.Ctx) error {
 		Status:          "pending",
 		ScheduledAt:     scheduledAt,
 		TargetGroupName: input.TargetGroupName,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
 	}
 
 	// บันทึก Notification ลงฐานข้อมูล
 	if err := database.DB.Create(&notification).Error; err != nil {
-		log.Println("Failed to create notification:", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create notification"})
 	}
 

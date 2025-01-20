@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,7 +42,10 @@
             font-size: 0.9rem;
         }
 
-        input, select, textarea, button {
+        input,
+        select,
+        textarea,
+        button {
             width: 100%;
             padding: 12px;
             margin-bottom: 15px;
@@ -55,7 +59,9 @@
             resize: vertical;
         }
 
-        input:focus, select:focus, textarea:focus {
+        input:focus,
+        select:focus,
+        textarea:focus {
             outline: none;
             border-color: #007BFF;
             box-shadow: 0 0 4px rgba(0, 123, 255, 0.2);
@@ -85,6 +91,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Notification Service</h1>
@@ -164,6 +171,11 @@
                 const formData = new FormData(e.target);
                 const data = Object.fromEntries(formData.entries());
 
+                // แปลง scheduled_at เป็นรูปแบบ `2025-01-20 09:29:00.376`
+                const localScheduledAt = new Date(data.scheduled_at);
+                const formattedScheduledAt = localScheduledAt.toISOString().replace('T', ' ').slice(0, -1); // ตัด 'Z'
+                data.scheduled_at = formattedScheduledAt; // เช่น '2025-01-20 09:29:00.376'
+
                 // POST notification data
                 const response = await fetch('/api/notifications', {
                     method: 'POST',
@@ -181,6 +193,7 @@
                 alert('Failed to create notification: ' + error.message);
             }
         });
+
     </script>
 </body>
 </html>

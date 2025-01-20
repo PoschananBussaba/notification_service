@@ -25,9 +25,15 @@ func StartScheduler() {
 func checkAndSendNotifications() {
 	var notifications []models.Notification
 
-	// ดึง Notifications ที่มีสถานะ pending และ scheduled_at <= เวลาปัจจุบัน
-	if err := database.DB.Where("status = ? AND scheduled_at <= ?", "pending", time.Now()).Find(&notifications).Error; err != nil {
+	// ดึง Notifications ที่มีสถานะ pending และ scheduled_at = เวลาปัจจุบัน
+	currentTime := time.Now().UTC().Truncate(time.Minute) // ใช้ UTC และตัดเศษวินาทีออก
+	if err := database.DB.Where("status = ? AND scheduled_at = ?", "pending", currentTime).Find(&notifications).Error; err != nil {
 		log.Println("Failed to fetch notifications:", err)
+		return
+	}
+
+	if len(notifications) == 0 {
+		log.Println("No pending notifications to process.")
 		return
 	}
 
@@ -41,7 +47,10 @@ func checkAndSendNotifications() {
 		}
 
 		// อัปเดตสถานะเป็น sent
-		database.DB.Model(&notification).Update("status", "sent")
+		database.DB.Model(&notification).Updates(map[string]interface{}{
+			"status":     "sent",
+			"updated_at": time.Now().UTC(),
+		})
 		log.Printf("Notification ID: %s sent successfully", notification.ID)
 	}
 }
@@ -52,13 +61,32 @@ func sendEmail(notification models.Notification) error {
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
 
-	to := "linesunnyname@gmail.com" // ระบุผู้รับ (ดึงจากฐานข้อมูลหรือกำหนดคงที่)
+	// ดึงอีเมลของสมาชิกในกลุ่ม
+	var emails []string
+	query := `
+		SELECT u.email
+		FROM users u
+		INNER JOIN target_group_members tgm ON u.id = tgm.user_id
+		INNER JOIN target_groups tg ON tgm.group_id = tg.id
+		WHERE tg.name = ? AND u.is_active = 1 AND tgm.is_active = 1
+	`
+	if err := database.DB.Raw(query, notification.TargetGroupName).Scan(&emails).Error; err != nil {
+		log.Printf("Failed to fetch emails for target group %s: %v", notification.TargetGroupName, err)
+		return err
+	}
+
+	if len(emails) == 0 {
+		log.Printf("No active members in group: %s", notification.TargetGroupName)
+		return nil
+	}
+
+	// สร้างเนื้อหาอีเมล
 	subject := "Subject: " + notification.Subject + "\n"
-	message := "Message: " + notification.Message + "\n"
+	message := notification.Message + "\n"
 	body := []byte(subject + "\n" + message)
 
 	auth := smtp.PlainAuth("", from, password, smtpHost)
 
-	// ส่งอีเมล
-	return smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, body)
+	// ส่งอีเมลไปยังผู้รับทั้งหมด
+	return smtp.SendMail(smtpHost+":"+smtpPort, auth, from, emails, body)
 }

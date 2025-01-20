@@ -9,7 +9,7 @@ import (
 func SetupRoutes(app *fiber.App) {
 	// Route หลัก
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendFile("./frontend/index.html") // เส้นทางไปยังไฟล์ HTML
+		return c.SendFile("./frontend/index.html")
 	})
 
 	// API Routes
@@ -17,5 +17,6 @@ func SetupRoutes(app *fiber.App) {
 
 	api.Post("/notifications", handlers.CreateNotification)
 	api.Get("/send-notifications", handlers.SendNotifications)
-
+	api.Get("/users", handlers.GetUsersByRole)
+	api.Get("/target-groups", handlers.GetTargetGroups)
 }

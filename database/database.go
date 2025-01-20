@@ -35,7 +35,12 @@ func ConnectDB() {
 }
 
 func migrate() {
-	err := DB.AutoMigrate(&models.User{}, &models.Notification{}, &models.TargetGroup{}, &models.TargetGroupMember{})
+	err := DB.Set("gorm:constraintCheck", true).AutoMigrate(
+		&models.User{},
+		&models.Notification{},
+		&models.TargetGroup{},
+		&models.TargetGroupMember{},
+	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

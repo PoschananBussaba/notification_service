@@ -4,7 +4,6 @@ import (
 	"log"
 	"notification_service/database"
 	"notification_service/routes"
-	"notification_service/scheduler"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,18 +18,17 @@ func main() {
 
 	app := fiber.New()
 
-	// เชื่อมต่อกับ Database
+	// เชื่อมต่อฐานข้อมูล
 	database.ConnectDB()
 
 	// ตั้งค่า Routes
 	routes.SetupRoutes(app)
 
-	// เริ่ม Scheduler
-	scheduler.StartScheduler()
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
+	log.Println("Server running on http://localhost:" + port)
 	log.Fatal(app.Listen(":" + port))
 }

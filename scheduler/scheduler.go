@@ -52,7 +52,7 @@ func sendEmail(notification models.Notification) error {
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
 
-	to := "recipient@example.com" // ระบุผู้รับ (ดึงจากฐานข้อมูลหรือกำหนดคงที่)
+	to := "linesunnyname@gmail.com" // ระบุผู้รับ (ดึงจากฐานข้อมูลหรือกำหนดคงที่)
 	subject := "Subject: " + notification.Subject + "\n"
 	message := "Message: " + notification.Message + "\n"
 	body := []byte(subject + "\n" + message)

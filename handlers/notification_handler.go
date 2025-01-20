@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
+	"net/smtp"
 	"notification_service/database"
 	"notification_service/models"
+	"os"
 	"strings"
 	"time"
 
@@ -43,6 +46,43 @@ func GetTargetGroups(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(groupNames)
+}
+
+func GetEmailsByTargetGroup(groupName string) ([]string, error) {
+	var emails []string
+
+	query := `
+		SELECT u.email
+		FROM users u
+		INNER JOIN target_group_members tgm ON u.id = tgm.user_id
+		INNER JOIN target_groups tg ON tgm.group_id = tg.id
+		WHERE tg.name = ? AND u.is_active = 1
+	`
+	if err := database.DB.Raw(query, groupName).Scan(&emails).Error; err != nil {
+		return nil, err
+	}
+
+	return emails, nil
+}
+
+func GetEmailsByGroupName(groupName string) ([]string, error) {
+	var emails []string
+
+	// Query ดึงอีเมลจาก target_groups และ users
+	query := `
+		SELECT u.email
+		FROM users u
+		INNER JOIN target_group_members tgm ON u.id = tgm.user_id
+		INNER JOIN target_groups tg ON tgm.group_id = tg.id
+		WHERE tg.name = ? AND u.is_active = 1 AND tgm.is_active = 1
+	`
+
+	if err := database.DB.Raw(query, groupName).Scan(&emails).Error; err != nil {
+		log.Printf("Error fetching emails for group %s: %v", groupName, err)
+		return nil, err
+	}
+
+	return emails, nil
 }
 
 func CreateNotification(c *fiber.Ctx) error {
@@ -109,23 +149,89 @@ func parseTime(datetime string) time.Time {
 }
 
 func SendNotifications(c *fiber.Ctx) error {
-	var notifications []models.Notification
+	notificationID := c.Query("notification_id")
 
-	// ดึง Notifications ที่สถานะเป็น pending และ scheduled_at <= เวลาปัจจุบัน
-	if err := database.DB.Where("status = ? AND scheduled_at <= ?", "pending", time.Now()).Find(&notifications).Error; err != nil {
-		log.Println("Failed to fetch notifications:", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch notifications"})
+	if notificationID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Notification ID is required"})
 	}
 
-	for _, notification := range notifications {
-		// Logic สำหรับการส่ง notification (อาจเป็นการส่งอีเมลหรืออื่น ๆ)
-		log.Printf("Sending notification ID: %s", notification.ID)
-
-		// อัปเดตสถานะเป็น sent
-		if err := database.DB.Model(&notification).Update("status", "sent").Error; err != nil {
-			log.Printf("Failed to update status for notification ID: %s", notification.ID)
-		}
+	// ดึงข้อมูล Notification จากฐานข้อมูล
+	var notification models.Notification
+	if err := database.DB.Where("id = ?", notificationID).First(&notification).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Notification not found"})
 	}
 
-	return c.Status(200).JSON(fiber.Map{"message": "Notifications sent successfully"})
+	// ส่งข้อมูลไปยังกลุ่ม
+	err := SendNotificationToGroup(notification.TargetGroupName, notification.Subject, notification.Message)
+	if err != nil {
+		log.Printf("Error sending notification: %v", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to send notification"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Notification sent successfully"})
+}
+
+func SendEmail(subject, message string, recipients []string) error {
+	// อ่านค่าจาก .env
+	from := os.Getenv("SMTP_EMAIL")
+	password := os.Getenv("SMTP_PASSWORD")
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+
+	// เตรียมเนื้อหาอีเมล
+	body := fmt.Sprintf("Subject: %s\n\n%s", subject, message)
+
+	// Authentication
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	// ส่งอีเมล
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, recipients, []byte(body))
+	if err != nil {
+		log.Printf("Failed to send email: %v", err)
+		return err
+	}
+
+	log.Printf("Email sent successfully to: %v", recipients)
+	return nil
+}
+
+func SendNotificationsByGroup(c *fiber.Ctx) error {
+	groupName := c.Query("group_name")
+	subject := c.Query("subject")
+	message := c.Query("message")
+
+	if groupName == "" || subject == "" || message == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "group_name, subject, and message are required"})
+	}
+
+	// ส่งค่า groupName, subject และ message
+	err := SendNotificationToGroup(groupName, subject, message)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to send notification"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Notification sent successfully"})
+}
+
+func SendNotificationToGroup(groupName, subject, message string) error {
+	// ดึงอีเมลผู้รับจากกลุ่ม
+	emails, err := GetEmailsByGroupName(groupName)
+	if err != nil {
+		return err
+	}
+
+	if len(emails) == 0 {
+		log.Printf("No active members in group: %s", groupName)
+		return nil
+	}
+
+	// ส่งอีเมล
+	err = SendEmail(subject, message, emails)
+	if err != nil {
+		log.Printf("Failed to send emails to group: %s", groupName)
+		return err
+	}
+
+	log.Printf("Emails sent successfully to group: %s", groupName)
+	return nil
 }

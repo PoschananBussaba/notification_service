@@ -19,4 +19,5 @@ func SetupRoutes(app *fiber.App) {
 	api.Get("/send-notifications", handlers.SendNotifications)
 	api.Get("/users", handlers.GetUsersByRole)
 	api.Get("/target-groups", handlers.GetTargetGroups)
+	api.Get("/send-group-notification", handlers.SendNotificationsByGroup)
 }

@@ -32,3 +32,52 @@ func main() {
 	log.Println("Server running on http://localhost:" + port)
 	log.Fatal(app.Listen(":" + port))
 }
+
+/*package main
+
+import (
+	"fmt"
+	"log"
+	"net/smtp"
+	"os"
+
+	"github.com/joho/godotenv"
+)
+
+func init() {
+	// โหลดไฟล์ .env
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+}
+
+func main() {
+	from := os.Getenv("SMTP_EMAIL")
+	password := os.Getenv("SMTP_PASSWORD")
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+
+	fmt.Println("SMTP_EMAIL:", from)
+	fmt.Println("SMTP_PASSWORD:", password)
+	fmt.Println("SMTP_HOST:", smtpHost)
+	fmt.Println("SMTP_PORT:", smtpPort)
+
+	if from == "" || password == "" || smtpHost == "" || smtpPort == "" {
+		log.Fatal("One or more SMTP environment variables are missing.")
+	}
+
+	to := []string{"linesunnyname@gmail.com"}
+	subject := "Subject: Test Email\n"
+	body := "This is a test email."
+	message := []byte(subject + "\n" + body)
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, to, message)
+	if err != nil {
+		log.Fatalf("Failed to send email: %v", err)
+	}
+
+	fmt.Println("Email sent successfully to:", to)
+}*/

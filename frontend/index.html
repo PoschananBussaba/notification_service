@@ -95,7 +95,7 @@
 <body>
     <div class="container">
         <h1>Notification Service</h1>
-        <form id="notificationForm">
+        <form id="notificationForm" enctype="multipart/form-data">
             <label for="sender_email">Sender Email:</label>
             <select id="sender_email" name="sender_email" required>
                 <!-- Options will be dynamically loaded -->
@@ -106,6 +106,9 @@
 
             <label for="message">Message:</label>
             <textarea id="message" name="message" rows="4" required></textarea>
+            
+            <label for="attachments">Attachments:</label>
+            <input type="file" id="attachments" name="attachments" multiple>
 
             <label for="priority">Priority:</label>
             <select id="priority" name="priority" required>
@@ -165,34 +168,33 @@
         document.addEventListener('DOMContentLoaded', fetchOptions);
 
         document.getElementById('notificationForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+    e.preventDefault();
 
-            try {
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData.entries());
+    const formData = new FormData(e.target);
 
-                // แปลง scheduled_at เป็นรูปแบบ `2025-01-20 09:29:00.376`
-                const localScheduledAt = new Date(data.scheduled_at);
-                const formattedScheduledAt = localScheduledAt.toISOString().replace('T', ' ').slice(0, -1); // ตัด 'Z'
-                data.scheduled_at = formattedScheduledAt; // เช่น '2025-01-20 09:29:00.376'
+        // แปลง scheduled_at เป็น ISO8601
+        const scheduledAtInput = document.getElementById('scheduled_at').value;
+        const scheduledAtISO = new Date(scheduledAtInput).toISOString(); // แปลงเป็น ISO8601
+        console.log("Scheduled At (ISO Format):", scheduledAtISO); // เพิ่ม log เพื่อตรวจสอบเวลา
+        formData.set('scheduled_at', scheduledAtISO);
 
-                // POST notification data
-                const response = await fetch('/api/notifications', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
+        try {
+            const response = await fetch('/api/notifications', {
+                method: 'POST',
+                body: formData,
+            });
 
-                const result = await response.json();
-                if (response.ok) {
-                    alert('Notification created successfully!');
-                } else {
-                    throw new Error(result.error || 'Unknown error occurred');
-                }
-            } catch (error) {
-                alert('Failed to create notification: ' + error.message);
+            const result = await response.json();
+            if (response.ok) {
+                alert('Notification created successfully!');
+            } else {
+                throw new Error(result.error || 'Unknown error occurred');
             }
-        });
+        } catch (error) {
+            alert('Failed to create notification: ' + error.message);
+        }
+    });
+
 
     </script>
 </body>

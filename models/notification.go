@@ -11,6 +11,7 @@ type Notification struct {
 	Priority        string    `gorm:"column:priority;type:enum('low','normal','high');default:'normal'"`
 	Status          string    `gorm:"column:status;type:enum('pending','in_progress','sent','failed');default:'pending'"`
 	ScheduledAt     time.Time `gorm:"column:scheduled_at;type:datetime;not null"`
+	Attachments     string    `gorm:"column:attachments;type:text"`
 	CreatedAt       time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt       time.Time `gorm:"column:updated_at;autoUpdateTime"`
 	TargetGroupName string    `gorm:"column:target_group_name;type:varchar(255)"`

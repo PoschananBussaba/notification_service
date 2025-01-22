@@ -1,13 +1,21 @@
 package scheduler
 
 import (
+	"bytes"
+	"encoding/base64"
+	"fmt"
 	"log"
+	"mime/multipart"
 	"net/smtp"
-	"os"
-	"time"
-
+	"net/textproto"
 	"notification_service/database"
 	"notification_service/models"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"io/ioutil"
 
 	"github.com/go-co-op/gocron"
 )
@@ -80,13 +88,71 @@ func sendEmail(notification models.Notification) error {
 		return nil
 	}
 
-	// สร้างเนื้อหาอีเมล
-	subject := "Subject: " + notification.Subject + "\n"
-	message := notification.Message + "\n"
-	body := []byte(subject + "\n" + message)
+	// สร้าง MIME message
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
 
+	// Header สำหรับ MIME
+	headers := map[string]string{
+		"From":         from,
+		"To":           strings.Join(emails, ","),
+		"Subject":      notification.Subject,
+		"MIME-Version": "1.0",
+		"Content-Type": `multipart/mixed; boundary="` + writer.Boundary() + `"`,
+	}
+
+	for key, value := range headers {
+		body.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
+	}
+	body.WriteString("\r\n")
+
+	// ส่วนข้อความ
+	textPart, err := writer.CreatePart(textproto.MIMEHeader{
+		"Content-Type": {"text/plain; charset=\"utf-8\""},
+	})
+	if err != nil {
+		log.Printf("Failed to create text part: %v", err)
+		return err
+	}
+	textPart.Write([]byte(notification.Message))
+
+	// แนบไฟล์
+	attachments := strings.Split(notification.Attachments, ",")
+	for _, filePath := range attachments {
+		fileName := filepath.Base(filePath)
+		fileContent, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			log.Printf("Failed to read file %s: %v", filePath, err)
+			continue
+		}
+
+		log.Printf("Attaching file: %s", filePath)
+
+		filePart, err := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Disposition":       {fmt.Sprintf("attachment; filename=\"%s\"", fileName)},
+			"Content-Type":              {"application/octet-stream"},
+			"Content-Transfer-Encoding": {"base64"},
+		})
+		if err != nil {
+			log.Printf("Failed to create MIME part for file %s: %v", fileName, err)
+			continue
+		}
+
+		// เขียนไฟล์ใน Base64
+		encoded := base64.StdEncoding.EncodeToString(fileContent)
+		filePart.Write([]byte(encoded))
+	}
+
+	writer.Close()
+
+	// ส่งอีเมล
 	auth := smtp.PlainAuth("", from, password, smtpHost)
+	err = smtp.SendMail(smtpHost+":"+smtpPort, auth, from, emails, body.Bytes())
+	if err != nil {
+		log.Printf("Failed to send email: %v", err)
+		return err
+	}
 
-	// ส่งอีเมลไปยังผู้รับทั้งหมด
-	return smtp.SendMail(smtpHost+":"+smtpPort, auth, from, emails, body)
+	log.Printf("Email sent successfully to: %v", emails)
+	return nil
 }

@@ -106,7 +106,7 @@
 
             <label for="message">Message:</label>
             <textarea id="message" name="message" rows="4" required></textarea>
-            
+
             <label for="attachments">Attachments:</label>
             <input type="file" id="attachments" name="attachments" multiple>
 
@@ -168,34 +168,35 @@
         document.addEventListener('DOMContentLoaded', fetchOptions);
 
         document.getElementById('notificationForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+            e.preventDefault();
 
-    const formData = new FormData(e.target);
+            const formData = new FormData(e.target);
 
-        // แปลง scheduled_at เป็น ISO8601
-        const scheduledAtInput = document.getElementById('scheduled_at').value;
-        const scheduledAtISO = new Date(scheduledAtInput).toISOString(); // แปลงเป็น ISO8601
-        console.log("Scheduled At (ISO Format):", scheduledAtISO); // เพิ่ม log เพื่อตรวจสอบเวลา
-        formData.set('scheduled_at', scheduledAtISO);
+            // แปลง scheduled_at เป็น ISO8601
+            const scheduledAtInput = document.getElementById('scheduled_at').value;
+            const scheduledAtISO = new Date(scheduledAtInput).toISOString(); // แปลงเป็น ISO8601
+            console.log("Scheduled At (ISO Format):", scheduledAtISO); // เพิ่ม log เพื่อตรวจสอบเวลา
+            formData.set('scheduled_at', scheduledAtISO);
 
-        try {
-            const response = await fetch('/api/notifications', {
-                method: 'POST',
-                body: formData,
-            });
+            try {
+                const response = await fetch('/api/notifications', {
+                    method: 'POST',
+                    body: formData,
+                });
 
-            const result = await response.json();
-            if (response.ok) {
-                alert('Notification created successfully!');
-            } else {
-                throw new Error(result.error || 'Unknown error occurred');
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Notification created successfully!');
+                } else {
+                    throw new Error(result.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                alert('Failed to create notification: ' + error.message);
             }
-        } catch (error) {
-            alert('Failed to create notification: ' + error.message);
-        }
-    });
+        });
 
 
     </script>
 </body>
+
 </html>
